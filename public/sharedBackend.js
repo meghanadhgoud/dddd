@@ -1,5 +1,7 @@
 // sharedBackend.js
-const socket = io('http://localhost:3000');
+// sharedBackend.js
+// const socket = io('http://localhost:3000');
+const socket = io('https://dddd-bx1p.onrender.com');
 
 const sharedBackend = {
     buses: [],
