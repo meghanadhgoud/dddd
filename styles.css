@@ -1,0 +1,136 @@
+/* styles.css */
+
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: url(klclg.webp)no-repeat center center;
+    background-size: 2000px auto; /* adjust size as needed */
+    backdrop-filter: blur(20px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  
+  
+  .login-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .login-box {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    padding: 30px 40px;
+    width: 350px;
+    position: relative;
+    text-align: center;
+  }
+  .login-box h1{
+    text-align: center;
+    font-weight: 700;
+    color: #2b4d15;
+  }
+  
+  .logo img {
+    width: 60px;
+    height: 60px;
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border-radius: 50%;
+    padding: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+  
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 40px;
+  }
+  
+  form label {
+    text-align: left;
+    font-weight: 600;
+    color: #2b4d15;
+  }
+  
+  form input[type="text"],
+  form input[type="password"] {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    outline: none;
+  }
+  form input[type="email"],
+  form input[type="number"] {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    outline: none;
+  }
+  form input[type="text"]:hover,
+form input[type="password"]:hover {
+  border-color: #2b4d15;
+}
+form input[type="email"]:hover,
+form input[type="number"]:hover {
+    border-color: #2b4d15;
+}
+  
+  .remember-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #333;
+  }
+  
+  .links {
+    font-size: 14px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    color: #004aad;
+  }
+  
+  .links a {
+    text-decoration: none;
+    color: #004aad;
+  }
+  
+  .links a:hover {
+    text-decoration: underline;
+  }
+  
+  form button {
+    display: block;
+    margin: 20px auto 0;
+    width: 100px;
+    padding: 10px;
+    background-color: #004aad;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  
+  form button:hover {
+    background-color: #00337f;
+  }
+  
+  footer {
+    margin-top: 20px;
+    font-size: 12px;
+    color: #ffffff;
+    cursor: pointer;
+  }
+  

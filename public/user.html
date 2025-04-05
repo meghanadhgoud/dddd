@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-Time Location Tracker</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen/Control.FullScreen.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        #map {
+            height: 60vh;
+            width: 100%;
+        }
+        #details {
+            font-size: 20px;
+            margin-top: 2vh;
+            color: #333;
+            text-align: center;
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #details div {
+            margin: 0.5rem 0;
+        }
+        #time-remaining { color: #c91515; }
+        #driver-name, #bus-number-plate, #incharge-name { color: #000000; }
+        #logo {
+            position: absolute;
+            top: 1vh;
+            left: 2vw;
+            width: 20vw;
+            max-width: 300px;
+            height: auto;
+            z-index: 1000;
+        }
+        h1 {
+            color: #333;
+            margin-top: 120px;
+            padding: 10px;
+            border-bottom: 5px solid #e91e63;
+            text-align: center;
+        }
+        footer {
+            text-align: center;
+            margin-top: 2vh;
+            font-size: clamp(14px, 2vw, 18px);
+            color: #333;
+        }
+        a { color: #e51313; }
+        @media (max-width: 768px) {
+            #map { height: 50vh; }
+            #details { font-size: 16px; padding: 0.5rem; }
+            #logo { width: 30vw; top: 0.5vh; left: 1vw; }
+            h1 { margin-top: 80px; }
+            footer { margin-top: 1vh; }
+        }
+        @media (max-width: 480px) {
+            #details { font-size: 14px; }
+            #logo { width: 40vw; }
+            h1 { margin-top: 60px; }
+        }
+    </style>
+</head>
+<body>
+    <img id="logo" src="hn.png" alt="KLH University Logo">
+    <h1></h1>
+    <div id="map"></div>
+    <div id="details">
+        <div>Bus arrives in: <span id="time-remaining"></span></div>
+        <div>Driver Name: <span id="driver-name"></span></div>
+        <div>Bus Number Plate: <span id="bus-number-plate"></span></div>
+        <div>In-charge Name: <span id="incharge-name"></span></div>
+    </div>
+    <footer>
+        Powered by <a href="https://www.kluniversity.in" target="_blank">KL University</a>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.fullscreen/Control.FullScreen.js"></script>
+    <script src="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <script type="module">
+        import sharedBackend from './sharedBackend.js';
+
+        var map = L.map('map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        map.addControl(new L.Control.FullScreen());
+
+        var marker;
+
+        function showUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        map.setView([userLat, userLng], 13);
+                        L.marker([userLat, userLng]).addTo(map)
+                            .bindPopup("<b style='color: #333;'>You are here!</b>")
+                            .openPopup();
+                        setTimeout(() => updateLocation(), 2000);
+                    },
+                    function(error) {
+                        console.error("Geolocation error:", error.message);
+                        alert("Could not get your location. Showing bus location.");
+                        updateLocation();
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            } else {
+                alert("Geolocation not supported. Showing bus location.");
+                updateLocation();
+            }
+        }
+
+        function updateLocation(busId = 1) {
+            const bus = sharedBackend.buses.find(b => b.id === busId);
+            if (!bus) return;
+
+            const lat = bus.lat;
+            const lng = bus.lng;
+            const currentZoom = map.getZoom() || 13;
+
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lng]).addTo(map)
+                .bindPopup(`<b style='color: #333;'>Bus ${bus.busNumberPlate} is here!</b>`)
+                .openPopup();
+            map.setView([lat, lng], currentZoom);
+
+            updateBusDetails(bus);
+        }
+
+        L.Control.recenterControl = L.Control.extend({
+            onAdd: function(map) {
+                var div = L.DomUtil.create('div', 'leaflet-bar recenter-control');
+                div.innerHTML = '<i class="fas fa-crosshairs"></i>';
+                div.style.backgroundColor = 'white';
+                div.style.width = '30px';
+                div.style.height = '30px';
+                div.style.cursor = 'pointer';
+                div.title = 'Recenter map';
+                L.DomEvent.on(div, 'click', function() {
+                    if (marker) map.setView([marker.getLatLng().lat, marker.getLatLng().lng], map.getZoom());
+                });
+                return div;
+            }
+        });
+
+        L.control.recenterControl = function(opts) { return new L.Control.recenterControl(opts); }
+        L.control.recenterControl({ position: 'bottomright' }).addTo(map);
+
+        var compass = new L.Control.Compass({ autoActive: true, showDigit: true });
+        map.addControl(compass);
+
+        function updateCountdown(busId = 1) {
+            let bus = sharedBackend.buses.find(b => b.id === busId);
+            if (!bus) return;
+
+            const countdownElement = document.getElementById('time-remaining');
+            let arrivalTime = bus.arrivalTime;
+
+            const interval = setInterval(() => {
+                if (arrivalTime <= 0) {
+                    clearInterval(interval);
+                    countdownElement.innerHTML = "Bus has arrived!";
+                } else {
+                    const minutes = Math.floor(arrivalTime / 60);
+                    const seconds = arrivalTime % 60;
+                    countdownElement.innerHTML = minutes + "m " + seconds + "s";
+                    arrivalTime--;
+                    bus.arrivalTime = arrivalTime;
+                    sharedBackend.updateBus(bus);
+                }
+            }, 1000);
+        }
+
+        function updateBusDetails(bus) {
+            document.getElementById('driver-name').innerHTML = bus.driverName;
+            document.getElementById('bus-number-plate').innerHTML = bus.busNumberPlate;
+            document.getElementById('incharge-name').innerHTML = bus.inchargeName;
+        }
+
+        sharedBackend.onUpdate((buses) => {
+            const bus = buses.find(b => b.id === 1); // Default to bus ID 1
+            if (bus) {
+                updateLocation(1);
+                updateBusDetails(bus);
+            }
+        });
+
+        showUserLocation();
+        updateCountdown();
+    </script>
+</body>
+</html>

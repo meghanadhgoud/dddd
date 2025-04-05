@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Operator Bus Management</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen/Control.FullScreen.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h2 {
+            color: #333;
+            text-align: center;
+        }
+        #operator-map {
+            height: 40vh;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        #bus-form {
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input, button {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #e91e63;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #d81b60;
+        }
+        #bus-list {
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        .bus-item {
+            padding: 10px;
+            background-color: #fff;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .bus-item button {
+            width: auto;
+            padding: 5px 10px;
+            background-color: #c91515;
+        }
+        @media (max-width: 768px) {
+            #operator-map { height: 30vh; }
+            #bus-form, #bus-list {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>Operator Bus Management</h2>
+    <div id="operator-map"></div>
+    <div id="bus-form">
+        <label for="bus-id">Bus ID (for update/delete):</label>
+        <input type="number" id="bus-id" placeholder="Leave blank for new bus">
+        <label for="driver-name">Driver Name:</label>
+        <input type="text" id="driver-name" required>
+        <label for="bus-number-plate">Bus Number Plate:</label>
+        <input type="text" id="bus-number-plate" required>
+        <label for="incharge-name">In-charge Name:</label>
+        <input type="text" id="incharge-name" required>
+        <label for="lat">Latitude:</label>
+        <input type="number" step="any" id="lat" required>
+        <label for="lng">Longitude:</label>
+        <input type="number" step="any" id="lng" required>
+        <label for="arrival-time">Arrival Time (seconds):</label>
+        <input type="number" id="arrival-time" required>
+        <button onclick="manageBus()">Save/Update Bus</button>
+    </div>
+    <div id="bus-list"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.fullscreen/Control.FullScreen.js"></script>
+    <script src="https://unpkg.com/leaflet-compass/dist/leaflet-compass.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <script type="module">
+        import sharedBackend from './sharedBackend.js';
+
+        var map = L.map('operator-map').setView([51.505, -0.09], 13); // Default view
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        map.addControl(new L.Control.FullScreen());
+        var markers = {};
+
+        async function manageBus() {
+            const id = document.getElementById('bus-id').value ? parseInt(document.getElementById('bus-id').value) : null;
+            const driverName = document.getElementById('driver-name').value;
+            const busNumberPlate = document.getElementById('bus-number-plate').value;
+            const inchargeName = document.getElementById('incharge-name').value;
+            const lat = parseFloat(document.getElementById('lat').value);
+            const lng = parseFloat(document.getElementById('lng').value);
+            const arrivalTime = parseInt(document.getElementById('arrival-time').value);
+
+            if (!driverName || !busNumberPlate || !inchargeName || isNaN(lat) || isNaN(lng) || isNaN(arrivalTime)) {
+                alert("Please fill all fields with valid data.");
+                return;
+            }
+
+            const bus = { 
+                id: id || (sharedBackend.buses.length ? Math.max(...sharedBackend.buses.map(b => b.id)) + 1 : 1), 
+                driverName, 
+                busNumberPlate, 
+                inchargeName, 
+                lat, 
+                lng, 
+                arrivalTime 
+            };
+
+            try {
+                const response = await fetch('/api/buses', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(bus),
+                });
+
+                if (response.ok) {
+                    const newBus = await response.json();
+                    alert('Bus created successfully!');
+                    sharedBackend.updateBus(newBus); // Update the shared backend
+                    document.getElementById('bus-form').reset();
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                }
+            } catch (err) {
+                console.error('Error creating bus:', err);
+                alert('Failed to create bus. Please try again.');
+            }
+        }
+
+        // Attach the function to the global scope
+        window.manageBus = manageBus;
+
+        function deleteBus(id) {
+            sharedBackend.deleteBus(id);
+        }
+
+        function updateBusListAndMap() {
+            const busList = document.getElementById('bus-list');
+            busList.innerHTML = '';
+
+            // Clear existing markers
+            Object.values(markers).forEach(marker => map.removeLayer(marker));
+            markers = {};
+
+            sharedBackend.buses.forEach(bus => {
+                // Update list
+                const div = document.createElement('div');
+                div.className = 'bus-item';
+                div.innerHTML = `
+                    Bus ${bus.busNumberPlate} (ID: ${bus.id}) - ${bus.driverName}, ${bus.inchargeName}, 
+                    Lat: ${bus.lat}, Lng: ${bus.lng}, Time: ${bus.arrivalTime}s
+                    <button onclick="deleteBus(${bus.id})">Delete</button>
+                `;
+                busList.appendChild(div);
+
+                // Update map
+                markers[bus.id] = L.marker([bus.lat, bus.lng]).addTo(map)
+                    .bindPopup(`<b style='color: #333;'>Bus ${bus.busNumberPlate}</b>`);
+            });
+
+            if (sharedBackend.buses.length > 0) {
+                const bounds = L.latLngBounds(sharedBackend.buses.map(b => [b.lat, b.lng]));
+                map.fitBounds(bounds);
+            }
+        }
+
+        sharedBackend.onUpdate(() => updateBusListAndMap());
+
+        updateBusListAndMap();
+    </script>
+</body>
+</html>
