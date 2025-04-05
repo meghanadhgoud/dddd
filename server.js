@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
@@ -80,80 +81,26 @@ async function seedData() {
     }
 }
 
-app.get('/api/buses', async (req, res) => {
-    try {
-        const buses = await Bus.find();
-        res.status(200).json(buses);
-    } catch (err) {
-        console.error('Error fetching buses:', err.message);
-        res.status(500).json({ error: 'Failed to fetch buses' });
-    }
-});
-
-// Create a new bus
-app.post('/api/buses', async (req, res) => {
-    try {
-        const newBus = new Bus(req.body);
-        await newBus.save();
-        res.status(201).json(newBus);
-    } catch (err) {
-        console.error('Error creating bus:', err.message);
-        res.status(500).json({ error: 'Failed to create bus' });
-    }
-});
-
-// Get a single bus by ID
-app.get('/api/buses/:id', async (req, res) => {
-    try {
-        const bus = await Bus.findOne({ id: req.params.id });
-        if (!bus) {
-            return res.status(404).json({ error: 'Bus not found' });
-        }
-        res.status(200).json(bus);
-    } catch (err) {
-        console.error('Error fetching bus:', err.message);
-        res.status(500).json({ error: 'Failed to fetch bus' });
-    }
-});
-
-// Update a bus by ID
-app.put('/api/buses/:id', async (req, res) => {
-    try {
-        const updatedBus = await Bus.findOneAndUpdate(
-            { id: req.params.id },
-            req.body,
-            { new: true, runValidators: true }
-        );
-        if (!updatedBus) {
-            return res.status(404).json({ error: 'Bus not found' });
-        }
-        res.status(200).json(updatedBus);
-    } catch (err) {
-        console.error('Error updating bus:', err.message);
-        res.status(500).json({ error: 'Failed to update bus' });
-    }
-});
-
-// Delete a bus by ID
-app.delete('/api/buses/:id', async (req, res) => {
-    try {
-        const deletedBus = await Bus.findOneAndDelete({ id: req.params.id });
-        if (!deletedBus) {
-            return res.status(404).json({ error: 'Bus not found' });
-        }
-        res.status(200).json({ message: 'Bus deleted successfully' });
-    } catch (err) {
-        console.error('Error deleting bus:', err.message);
-        res.status(500).json({ error: 'Failed to delete bus' });
-    }
-});
-
 // Start Server
 async function startServer() {
     await connectToMongoDB();
     await seedData();
     const PORT = 3000;
-    server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+
+    server.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running at http://localhost:${PORT}`);
+
+        // Dynamically find the first available IPv4 address
+        const networkInterfaces = os.networkInterfaces();
+        for (const interfaceName in networkInterfaces) {
+            const addresses = networkInterfaces[interfaceName];
+            for (const address of addresses) {
+                if (address.family === 'IPv4' && !address.internal) {
+                    console.log(`Accessible on your network at http://${address.address}:${PORT}`);
+                }
+            }
+        }
+    });
 }
 
 startServer();
