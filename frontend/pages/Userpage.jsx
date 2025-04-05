@@ -43,9 +43,10 @@ function RecenterMap({ buses, userLocation }) {
 export default function UserPage() {
     const [buses, setBuses] = useState([]);
     const [userLocation, setUserLocation] = useState(null);
+    const [selectedBus, setSelectedBus] = useState(null);
 
     useEffect(() => {
-        // Listen for bus updates from sharedBackend (admin-like functionality)
+        // Listen for bus updates from sharedBackend
         sharedBackend.onUpdate((updatedBuses) => {
             setBuses(updatedBuses);
         });
@@ -60,7 +61,7 @@ export default function UserPage() {
                     });
                 },
                 (error) => {
-                    console.error('Error watching user location W:', error);
+                    console.error('Error watching user location:', error);
                 },
                 { enableHighAccuracy: true }
             );
@@ -87,13 +88,13 @@ export default function UserPage() {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <img src={kllogo} alt="KL University Logo" style={{ width: '90px', height: 'auto', marginRight: '20px', borderRadius: '10px' }} />
-                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold', textTransform: 'uppercase' }}>Your Location & Nearby Buses</h1>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold', textTransform: 'uppercase' }}>Tracker</h1>
                 </div>
             </header>
 
             {/* Main Content */}
             <main style={{ flex: 1, padding: '30px', width: '100%' }}>
-                <h2 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '25px', textAlign: 'center', fontWeight: 'bold', textTransform: 'uppercase' }}>Track Your Position</h2>
+                <h2 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '25px', textAlign: 'center', fontWeight: 'bold', textTransform: 'uppercase' }}>Tracking</h2>
                 <div style={{ borderRadius: '15px', overflow: 'hidden', boxShadow: '0 6px 18px rgba(0,0,0,0.15)', marginBottom: '35px', width: '100%' }}>
                     <MapContainer center={[17.385044, 78.486671]} zoom={13} style={{ height: '65vh', width: '100%', border: '2px solid #a30000' }}>
                         <TileLayer
@@ -113,11 +114,18 @@ export default function UserPage() {
                             </Marker>
                         )}
                         {buses.map((bus) => (
-                            <Marker key={bus.id} position={[bus.lat, bus.lng]} icon={busIcon}>
+                            <Marker
+                                key={bus.id}
+                                position={[bus.lat, bus.lng]}
+                                icon={busIcon}
+                                eventHandlers={{
+                                    click: () => setSelectedBus(bus),
+                                }}
+                            >
                                 <Popup>
                                     <strong>Bus {bus.busNumber}</strong>
                                     <br />
-                                    Distance: {userLocation ? 
+                                    Distance: {userLocation ?
                                         (L.latLng(userLocation.lat, userLocation.lng)
                                             .distanceTo(L.latLng(bus.lat, bus.lng)) / 1000)
                                             .toFixed(2) + ' km' : 'N/A'}
@@ -126,6 +134,46 @@ export default function UserPage() {
                         ))}
                     </MapContainer>
                 </div>
+
+                {/* Bus List */}
+                <h2 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '25px', textAlign: 'center', fontWeight: 'bold', textTransform: 'uppercase' }}>Bus List</h2>
+                <ul style={{ 
+                    listStyle: 'none', 
+                    padding: 0, // Keep this padding
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f0f2f5 100%)', 
+                    borderRadius: '15px', 
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)', 
+                    width: '100%', 
+                    maxWidth: '900px', 
+                    margin: '0 auto' 
+                }}>
+                    {buses.map((bus) => (
+                        <li key={bus.id} style={{ 
+                            marginBottom: '20px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            padding: '15px', 
+                            backgroundColor: '#ffffff', 
+                            borderRadius: '10px', 
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.1)', 
+                            transition: 'transform 0.3s' 
+                        }}>
+                            {/* Bus details */}
+                        </li>
+                    ))}
+                </ul>
+
+                {/* Bus Details */}
+                {selectedBus && (
+                    <div style={{ padding: '20px', background: '#fff', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginTop: '20px' }}>
+                        <h3 style={{ color: '#2c3e50', fontSize: '24px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>Bus Details</h3>
+                        <p><strong>Bus Number:</strong> {selectedBus.busNumber}</p>
+                        <p><strong>Driver Name:</strong> {selectedBus.driverName}</p>
+                        <p><strong>In-charge Name:</strong> {selectedBus.inchargeName}</p>
+                        <p><strong>Status:</strong> {selectedBus.lat}</p>
+                        <p><strong>Distance:</strong> {selectedBus.lng}</p>
+                    </div>
+                )}
             </main>
 
             {/* Footer */}
