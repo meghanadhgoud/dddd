@@ -225,7 +225,7 @@ export default function OperatorPage() {
                 </form>
 
                 <h2 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '25px', textAlign: 'center', fontWeight: 'bold', textTransform: 'uppercase' }}>Bus List</h2>
-                <ul style={{ listStyle: 'none', padding: 0, background: 'linear-gradient(135deg, #ffffff 0%, #f0f2f5 100%)', borderRadius: '15px', boxShadow: '0 6px 18px rgba(0,0,0,0.15)', padding: '25px', width: '100%', maxWidth: '900px', margin: '0 auto' }}>
+                <ul style={{ listStyle: 'none', background: 'linear-gradient(135deg, #ffffff 0%, #f0f2f5 100%)', borderRadius: '15px', boxShadow: '0 6px 18px rgba(0,0,0,0.15)', padding: '25px', width: '100%', maxWidth: '900px', margin: '0 auto' }}>
                     {buses.map((bus) => (
                         <li key={bus.id} style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', padding: '15px', backgroundColor: '#ffffff', borderRadius: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', transition: 'transform 0.3s' }}
                             onMouseOver={(e) => (e.target.style.transform = 'translateY(-5px)')}

@@ -4,10 +4,14 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const os = require('os');
+const path = require('path'); // Import path module
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: "*" } });
+
+const inProduction = process.env.NODE_ENV === 'production'; // Check if in production
+const SERVER_PORT = process.env.PORT || 3000; // Use environment variable or default to 3000
 
 app.use(cors());
 app.use(express.json());
@@ -81,14 +85,22 @@ async function seedData() {
     }
 }
 
+// Serve static files in production
+if (inProduction) {
+    app.use(express.static(path.join(__dirname, "/frontend/dist")));
+
+    app.get("*", (req, res) => {
+        res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
+    });
+}
+
 // Start Server
 async function startServer() {
     await connectToMongoDB();
     await seedData();
-    const PORT = 3000;
 
-    server.listen(PORT, '0.0.0.0', () => {
-        console.log(`Server running at http://localhost:${PORT}`);
+    server.listen(SERVER_PORT, '0.0.0.0', () => {
+        console.log(`Server running at http://localhost:${SERVER_PORT}`);
 
         // Dynamically find the first available IPv4 address
         const networkInterfaces = os.networkInterfaces();
@@ -96,7 +108,7 @@ async function startServer() {
             const addresses = networkInterfaces[interfaceName];
             for (const address of addresses) {
                 if (address.family === 'IPv4' && !address.internal) {
-                    console.log(`Accessible on your network at http://${address.address}:${PORT}`);
+                    console.log(`Accessible on your network at http://${address.address}:${SERVER_PORT}`);
                 }
             }
         }
