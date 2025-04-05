@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 export default function OperatorPage() {
     const [buses, setBuses] = useState([]);
@@ -32,6 +34,24 @@ export default function OperatorPage() {
                     </li>
                 ))}
             </ul>
+            <h2>Bus Locations</h2>
+            <MapContainer center={[17.385044, 78.486671]} zoom={13} style={{ height: '60vh', width: '100%' }}>
+                <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                {buses.map((bus) => (
+                    <Marker key={bus.id} position={[bus.lat, bus.lng]}>
+                        <Popup>
+                            <strong>Bus {bus.busNumberPlate}</strong>
+                            <br />
+                            Driver: {bus.driverName}
+                            <br />
+                            In-charge: {bus.inchargeName}
+                        </Popup>
+                    </Marker>
+                ))}
+            </MapContainer>
         </div>
     );
 }
