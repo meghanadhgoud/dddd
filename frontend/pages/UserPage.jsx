@@ -146,7 +146,7 @@ export default function UserPage() {
                     width: '100%', 
                     maxWidth: '900px', 
                     margin: '0 auto' 
-                }}>
+                }}> 
                     {buses.map((bus) => (
                         <li key={bus.id} style={{ 
                             marginBottom: '20px', 
