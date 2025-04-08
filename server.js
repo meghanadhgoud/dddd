@@ -32,7 +32,7 @@ async function connectToMongoDB() {
 
 // Bus Schema
 const busSchema = new mongoose.Schema({
-    id: { type: Number, required: true, unique: true },
+    id: { type: String, required: true, unique: true }, // Change from Number to String
     driverName: { type: String, required: true },
     busNumberPlate: { type: String, required: true, unique: true },
     inchargeName: { type: String, required: true },
@@ -46,8 +46,20 @@ const Bus = mongoose.model('Bus', busSchema);
 // Socket.IO Connection
 io.on('connection', async (socket) => {
     console.log('Client connected');
-    const buses = await Bus.find();
-    socket.emit('initial_buses', buses);
+
+    // Send initial data based on role
+    socket.on('role', async (role) => {
+        if (role === 'user') {
+            const buses = await Bus.find({ id: 'driver' }); // Only show the driver
+            socket.emit('initial_buses', buses);
+        } else if (role === 'driver') {
+            const driver = await Bus.findOne({ id: 'driver' }); // Only the driver's data
+            socket.emit('initial_buses', driver ? [driver] : []);
+        } else if (role === 'operator') {
+            const drivers = await Bus.find({ id: 'driver' }); // Only drivers
+            socket.emit('initial_buses', drivers);
+        }
+    });
 
     socket.on('update_bus', async (bus) => {
         const updatedBus = await Bus.findOneAndUpdate(
@@ -55,14 +67,14 @@ io.on('connection', async (socket) => {
             bus,
             { upsert: true, new: true }
         );
-        const allBuses = await Bus.find(); // Send full list
-        io.emit('bus_updated', allBuses); // Broadcast full list
+        const allBuses = await Bus.find();
+        io.emit('bus_updated', allBuses); // Broadcast full list to all clients
     });
 
     socket.on('delete_bus', async (id) => {
         await Bus.findOneAndDelete({ id });
         const allBuses = await Bus.find();
-        io.emit('bus_updated', allBuses); // Broadcast full list
+        io.emit('bus_updated', allBuses); // Broadcast full list to all clients
     });
 
     socket.on('disconnect', () => console.log('Client disconnected'));
@@ -72,16 +84,7 @@ io.on('connection', async (socket) => {
 async function seedData() {
     const count = await Bus.countDocuments();
     if (count === 0) {
-        await Bus.create({
-            id: 1,
-            driverName: "Shivam",
-            busNumberPlate: "TS 09 AB 1234",
-            inchargeName: "Rakesh",
-            lat: 51.505,
-            lng: -0.09,
-            arrivalTime: 300
-        });
-        console.log('Initial bus data seeded');
+        console.log('No initial data seeded'); // Remove the default bus
     }
 }
 

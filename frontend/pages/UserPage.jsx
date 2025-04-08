@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import kllogo from './kllogo.jpg'; // Adjust the path if necessary
@@ -43,38 +43,73 @@ function RecenterMap({ buses, userLocation }) {
 export default function UserPage() {
     const [buses, setBuses] = useState([]);
     const [userLocation, setUserLocation] = useState(null);
-    const [selectedBus, setSelectedBus] = useState(null);
+    const [route, setRoute] = useState([]); // State to store the route coordinates
 
     useEffect(() => {
         // Listen for bus updates from sharedBackend
+        sharedBackend.setRole('user'); // Set role as 'user'
         sharedBackend.onUpdate((updatedBuses) => {
-            setBuses(updatedBuses);
+            setBuses(updatedBuses.filter((bus) => bus.id === 'driver')); // Only show the driver
         });
 
         // Watch the user's current location
         if (navigator.geolocation) {
-            const watchId = navigator.geolocation.watchPosition(
-                (position) => {
-                    setUserLocation({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                    });
-                },
-                (error) => {
-                    console.error('Error watching user location:', error);
-                },
-                { enableHighAccuracy: true }
-            );
+            const intervalId = setInterval(() => {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        setUserLocation({
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        });
+                    },
+                    (error) => {
+                        console.error('Error watching user location:', error);
+                    },
+                    { enableHighAccuracy: true }
+                );
+            }, 3000); // Update every 3 seconds
 
-            // Cleanup the watcher on component unmount
-            return () => navigator.geolocation.clearWatch(watchId);
+            // Cleanup the interval on component unmount
+            return () => clearInterval(intervalId);
         } else {
             console.error('Geolocation is not supported by this browser.');
         }
     }, []);
 
+    useEffect(() => {
+        // Fetch the route when userLocation and bus location are available
+        if (userLocation && buses.length > 0) {
+            const busLocation = buses[0]; // Assuming only one driver
+            const fetchRoute = async () => {
+                const apiKey = '5b3ce3597851110001cf6248161fa7d30a3146d498127102eeabbfc8'; // Your OpenRouteService API key
+                const start = `${userLocation.lng},${userLocation.lat}`;
+                const end = `${busLocation.lng},${busLocation.lat}`;
+                const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${start}&end=${end}`;
+
+                try {
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    if (data && data.features && data.features[0]) {
+                        const coordinates = data.features[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+                        setRoute(coordinates); // Update the route state
+                    }
+                } catch (error) {
+                    console.error('Error fetching route:', error);
+                }
+            };
+
+            fetchRoute();
+        }
+    }, [userLocation, buses]);
+
     return (
-        <div style={{ fontFamily: 'Arial, sans-serif', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ 
+            fontFamily: 'Arial, sans-serif', 
+            background: '#ffffff', 
+            minHeight: '100vh', 
+            display: 'flex', 
+            flexDirection: 'column' 
+        }}>
             {/* Header */}
             <header style={{
                 backgroundColor: '#a30000',
@@ -95,8 +130,15 @@ export default function UserPage() {
             {/* Main Content */}
             <main style={{ flex: 1, padding: '30px', width: '100%' }}>
                 <h2 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '25px', textAlign: 'center', fontWeight: 'bold', textTransform: 'uppercase' }}>Tracking</h2>
-                <div style={{ borderRadius: '15px', overflow: 'hidden', boxShadow: '0 6px 18px rgba(0,0,0,0.15)', marginBottom: '35px', width: '100%' }}>
-                    <MapContainer center={[17.385044, 78.486671]} zoom={13} style={{ height: '65vh', width: '100%', border: '2px solid #a30000' }}>
+                <div style={{ borderRadius: '15px', overflow: 'hidden', boxShadow: '0 6px 18px rgba(0,0,0,0.15)', width: '100%', height: '100%' }}>
+                    <MapContainer
+                        center={[17, 78]} // Default center
+                        zoom={20}
+                        style={{
+                            height: 'calc(100vh - 200px)', // Full height minus header and footer
+                            width: '100%', // Full width
+                        }}
+                    >
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -118,62 +160,22 @@ export default function UserPage() {
                                 key={bus.id}
                                 position={[bus.lat, bus.lng]}
                                 icon={busIcon}
-                                eventHandlers={{
-                                    click: () => setSelectedBus(bus),
-                                }}
                             >
                                 <Popup>
-                                    <strong>Bus {bus.busNumber}</strong>
+                                    <strong>Driver</strong>
                                     <br />
-                                    Distance: {userLocation ?
-                                        (L.latLng(userLocation.lat, userLocation.lng)
-                                            .distanceTo(L.latLng(bus.lat, bus.lng)) / 1000)
-                                            .toFixed(2) + ' km' : 'N/A'}
+                                    Driver Name: {bus.driverName}
                                 </Popup>
                             </Marker>
                         ))}
+                        {route.length > 0 && (
+                            <Polyline
+                                positions={route}
+                                color="blue"
+                            />
+                        )}
                     </MapContainer>
                 </div>
-
-                {/* Bus List */}
-                <h2 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '25px', textAlign: 'center', fontWeight: 'bold', textTransform: 'uppercase' }}>Bus List</h2>
-                <ul style={{ 
-                    listStyle: 'none', 
-                    padding: 0, // Keep this padding
-                    background: 'linear-gradient(135deg, #ffffff 0%, #f0f2f5 100%)', 
-                    borderRadius: '15px', 
-                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)', 
-                    width: '100%', 
-                    maxWidth: '900px', 
-                    margin: '0 auto' 
-                }}> 
-                    {buses.map((bus) => (
-                        <li key={bus.id} style={{ 
-                            marginBottom: '20px', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            padding: '15px', 
-                            backgroundColor: '#ffffff', 
-                            borderRadius: '10px', 
-                            boxShadow: '0 4px 10px rgba(0,0,0,0.1)', 
-                            transition: 'transform 0.3s' 
-                        }}>
-                            {/* Bus details */}
-                        </li>
-                    ))}
-                </ul>
-
-                {/* Bus Details */}
-                {selectedBus && (
-                    <div style={{ padding: '20px', background: '#fff', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginTop: '20px' }}>
-                        <h3 style={{ color: '#2c3e50', fontSize: '24px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>Bus Details</h3>
-                        <p><strong>Bus Number:</strong> {selectedBus.busNumber}</p>
-                        <p><strong>Driver Name:</strong> {selectedBus.driverName}</p>
-                        <p><strong>In-charge Name:</strong> {selectedBus.inchargeName}</p>
-                        <p><strong>Status:</strong> {selectedBus.lat}</p>
-                        <p><strong>Distance:</strong> {selectedBus.lng}</p>
-                    </div>
-                )}
             </main>
 
             {/* Footer */}
@@ -182,7 +184,6 @@ export default function UserPage() {
                 color: 'white',
                 padding: '15px 30px',
                 textAlign: 'center',
-                marginTop: 'auto',
                 width: '100%',
                 boxShadow: '0 -2px 6px rgba(0,0,0,0.1)',
             }}>

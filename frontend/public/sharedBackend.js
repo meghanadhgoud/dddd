@@ -6,6 +6,9 @@ const socket = io('http://localhost:3000');
 const sharedBackend = {
     buses: [],
     listeners: [],
+    setRole(role) {
+        socket.emit('role', role); // Notify the backend of the role
+    },
     updateBus(bus) {
         socket.emit('update_bus', bus);
     },

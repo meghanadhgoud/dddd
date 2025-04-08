@@ -35,4 +35,14 @@ socket.on('bus_deleted', (buses) => {
     sharedBackend.notifyListeners();
 });
 
+sharedBackend.updateBus({
+    id: 'driver', // Ensure this is a string
+    lat: location.lat,
+    lng: location.lng,
+    driverName: 'Driver', // Placeholder name
+    busNumberPlate: 'N/A', // Placeholder bus number
+    inchargeName: 'N/A', // Placeholder in-charge name
+    arrivalTime: 0 // Not applicable for drivers
+});
+
 export default sharedBackend;
