@@ -4,49 +4,80 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import kllogo from './kllogo.jpg'; // Adjust the path if necessary
 import sharedBackend from '../public/sharedBackend'; // Import sharedBackend
-import busMarker from './bus.png'; // Custom marker for buses
+import busMarker from './bus.png'; // Custom marker for drivers
 
-// Custom icon for the bus marker
-const busIcon = new L.Icon({
+// Custom icon for the driver marker
+const driverIcon = new L.Icon({
     iconUrl: busMarker,
     iconSize: [40, 40],
     iconAnchor: [20, 40],
     popupAnchor: [0, -40],
 });
 
-// Component to recenter the map based on drivers' locations
-function RecenterMap({ buses }) {
+// Component to recenter the map based on driver location
+function RecenterMap({ driverLocation }) {
     const map = useMap();
 
     useEffect(() => {
-        if (buses.length > 0) {
-            const bounds = L.latLngBounds(buses.map((bus) => [bus.lat, bus.lng]));
-            map.fitBounds(bounds, { padding: [50, 50] });
+        if (driverLocation) {
+            map.setView([driverLocation.lat, driverLocation.lng], 13);
         }
-    }, [buses, map]);
+    }, [driverLocation, map]);
 
     return null;
 }
 
-export default function OperatorPage() {
-    const [buses, setBuses] = useState([]);
+export default function DriverPage() {
+    const [driverLocation, setDriverLocation] = useState(null);
 
     useEffect(() => {
-        // Set role as 'operator' to fetch only drivers
-        sharedBackend.setRole('operator');
+        // Set role as 'driver'
+        sharedBackend.setRole('driver');
 
-        // Listen for bus updates from sharedBackend
-        sharedBackend.onUpdate((updatedBuses) => {
-            setBuses(updatedBuses.filter((bus) => bus.id === 'driver')); // Only show drivers
-        });
+        // Update the driver's location every 3 seconds
+        const intervalId = setInterval(() => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const location = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        };
+                        setDriverLocation(location);
+
+                        // Update the driver's location in the backend
+                        sharedBackend.updateBus({
+                            id: 'driver', // Unique ID for the driver
+                            lat: location.lat,
+                            lng: location.lng,
+                            driverName: 'Driver', // Placeholder name
+                            busNumberPlate: 'N/A', // Placeholder bus number
+                            inchargeName: 'N/A', // Placeholder in-charge name
+                            arrivalTime: 0, // Not applicable for drivers
+                        });
+                    },
+                    (error) => {
+                        console.error('Error fetching driver location:', error);
+                    },
+                    { enableHighAccuracy: true }
+                );
+            } else {
+                console.error('Geolocation is not supported by this browser.');
+            }
+        }, 3000); // Update every 3 seconds
+
+        // Cleanup the interval on component unmount
+        return () => clearInterval(intervalId);
     }, []);
 
-    const handleDelete = (id) => {
-        sharedBackend.deleteBus(id); // Delete the driver by ID
-    };
-
     return (
-        <div style={{ fontFamily: 'Arial, sans-serif', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ 
+            fontFamily: 'Arial, sans-serif', 
+            background: '#ffffff', 
+            minHeight: '100vh', 
+            display: 'flex', 
+            flexDirection: 'column' 
+        }}>
             {/* Header */}
             <header style={{
                 backgroundColor: '#a30000',
@@ -60,74 +91,40 @@ export default function OperatorPage() {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <img src={kllogo} alt="KL University Logo" style={{ width: '90px', height: 'auto', marginRight: '20px', borderRadius: '10px' }} />
-                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold', textTransform: 'uppercase' }}>Operator Tracker</h1>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold', textTransform: 'uppercase' }}>Driver Tracker</h1>
                 </div>
             </header>
 
             {/* Main Content */}
             <main style={{ flex: 1, padding: '30px', width: '100%' }}>
-                <h2 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '25px', textAlign: 'center', fontWeight: 'bold', textTransform: 'uppercase' }}>Drivers</h2>
-                <div style={{ borderRadius: '15px', overflow: 'hidden', boxShadow: '0 6px 18px rgba(0,0,0,0.15)', marginBottom: '35px', width: '100%' }}>
-                    <MapContainer center={[17.385044, 78.486671]} zoom={13} style={{ height: '65vh', width: '100%', border: '2px solid #a30000' }}>
+                <h2 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '25px', textAlign: 'center', fontWeight: 'bold', textTransform: 'uppercase' }}>Your Location</h2>
+                <div style={{ borderRadius: '15px', overflow: 'hidden', boxShadow: '0 6px 18px rgba(0,0,0,0.15)', width: '100%', height: '100%' }}>
+                    <MapContainer
+                        center={[17.385044, 78.486671]} // Default center
+                        zoom={13}
+                        style={{
+                            height: 'calc(100vh - 200px)', // Full height minus header and footer
+                            width: '100%', // Full width
+                        }}
+                    >
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         />
-                        <RecenterMap buses={buses} />
-                        {buses.map((bus) => (
-                            <Marker
-                                key={bus.id}
-                                position={[bus.lat, bus.lng]}
-                                icon={busIcon}
-                            >
+                        <RecenterMap driverLocation={driverLocation} />
+                        {driverLocation && (
+                            <Marker position={[driverLocation.lat, driverLocation.lng]} icon={driverIcon}>
                                 <Popup>
-                                    <strong>Driver: {bus.driverName}</strong>
+                                    <strong>You are here!</strong>
                                     <br />
-                                    Bus Number: {bus.busNumberPlate}
+                                    Lat: {driverLocation.lat.toFixed(4)}
                                     <br />
-                                    In-charge: {bus.inchargeName}
+                                    Lng: {driverLocation.lng.toFixed(4)}
                                 </Popup>
                             </Marker>
-                        ))}
+                        )}
                     </MapContainer>
                 </div>
-
-                {/* Driver List */}
-                <h2 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '25px', textAlign: 'center', fontWeight: 'bold', textTransform: 'uppercase' }}>Driver List</h2>
-                <ul style={{ listStyle: 'none', background: 'linear-gradient(135deg, #ffffff 0%, #f0f2f5 100%)', borderRadius: '15px', boxShadow: '0 6px 18px rgba(0,0,0,0.15)', padding: '25px', width: '100%', maxWidth: '900px', margin: '0 auto' }}>
-                    {buses.map((bus) => (
-                        <li key={bus.id} style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', padding: '15px', backgroundColor: '#ffffff', borderRadius: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', transition: 'transform 0.3s' }}
-                            onMouseOver={(e) => (e.target.style.transform = 'translateY(-5px)')}
-                            onMouseOut={(e) => (e.target.style.transform = 'translateY(0)')}>
-                            <span style={{ flex: 1, color: '#2c3e50', fontSize: '16px' }}>
-                                <strong>Driver: {bus.driverName}</strong> - Bus Number: {bus.busNumberPlate}, In-charge: {bus.inchargeName}
-                            </span>
-                            <button
-                                onClick={() => handleDelete(bus.id)}
-                                style={{
-                                    background: 'linear-gradient(90deg, #e74c3c, #c0392b)',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '12px 25px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    fontSize: '16px',
-                                    transition: 'transform 0.3s, box-shadow 0.3s'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.target.style.transform = 'scale(1.05)';
-                                    e.target.style.boxShadow = '0 4px 8px rgba(231, 76, 60, 0.4)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.target.style.transform = 'scale(1)';
-                                    e.target.style.boxShadow = 'none';
-                                }}
-                            >
-                                Delete
-                            </button>
-                        </li>
-                    ))}
-                </ul>
             </main>
 
             {/* Footer */}
@@ -136,9 +133,8 @@ export default function OperatorPage() {
                 color: 'white',
                 padding: '15px 30px',
                 textAlign: 'center',
-                marginTop: 'auto',
                 width: '100%',
-                boxShadow: '0 -2px 6px rgba(0,0,0,0.1)'
+                boxShadow: '0 -2px 6px rgba(0,0,0,0.1)',
             }}>
                 <p style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
                     © {new Date().getFullYear()} KL Deemed to be University. All Rights Reserved.

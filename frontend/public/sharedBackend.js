@@ -1,7 +1,7 @@
 // sharedBackend.js
 
 import { io } from 'socket.io-client';
-const socket = io('http://localhost:3000');
+const socket = io('https://dddd-bx1p.onrender.com'); // Replace with your Render app URL
 
 const sharedBackend = {
     buses: [],

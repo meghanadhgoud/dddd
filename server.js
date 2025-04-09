@@ -13,7 +13,11 @@ const io = socketIo(server, { cors: { origin: "*" } });
 const inProduction = process.env.NODE_ENV === 'production'; // Check if in production
 const SERVER_PORT = process.env.PORT || 3000; // Use environment variable or default to 3000
 
-app.use(cors());
+app.use(cors({
+    origin: '*', // Allow all origins (for testing purposes)
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type']
+}));
 app.use(express.json());
 
 // Connect to MongoDB Atlas

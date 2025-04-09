@@ -44,6 +44,17 @@ export default function UserPage() {
     const [buses, setBuses] = useState([]);
     const [userLocation, setUserLocation] = useState(null);
     const [route, setRoute] = useState([]); // State to store the route coordinates
+    const [stops, setStops] = useState([]);
+
+    useEffect(() => {
+        const fetchStops = async () => {
+            const response = await fetch('https://your-server-url.com/stops');
+            const data = await response.json();
+            setStops(data);
+        };
+
+        fetchStops();
+    }, []);
 
     useEffect(() => {
         // Listen for bus updates from sharedBackend
